@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 # Inputting intrinsic parameters
 
-z_val = 0.1
+z_val = 0.03
 t0_val = 0
 x1_list = np.linspace(-3, 3, 5)
 c_list = np.linspace(-0.3, 0.3, 5)   #param space
