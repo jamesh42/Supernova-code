@@ -93,7 +93,7 @@ class GLSNe(sncosmo.Source):
 
 
 def unresolved_and_individual_lcs(unresolvedmodel, savelc = False, tgrid='continuous', snmodel='salt2-extended', nimages=2, bands=['ztfg', 'ztfr', 'ztfi'],
-                                  plotunresolved=True, plotimages=True):
+                                  plotunresolved=True, plotimages=True, sample_freq = 5, fl_err = 0.1):   #added sample freq and fl err
     '''Input model and output the plot with the unresolve lc in solid and individual in dashed lines.
     All bands in the same panel'''
 
@@ -103,8 +103,12 @@ def unresolved_and_individual_lcs(unresolvedmodel, savelc = False, tgrid='contin
 
     fig, ax = plt.subplots()
     
-    if tgrid == 'discrete':
+    if tgrid == 'discrete':    # THIS IS THE PART I HAD TO ADD TO CHANGE CADENCE
         time = np.linspace(unresolvedmodel.mintime(), unresolvedmodel.maxtime(), 10)
+        time_span = unresolvedmodel.maxtime() - unresolvedmodel.mintime()
+        no_time_points = time_span / sample_freq
+        no_time_points = int(no_time_points)
+        time = np.linspace(unresolvedmodel.mintime(), unresolvedmodel.maxtime(), no_time_points)
     else:
         time = np.linspace(unresolvedmodel.mintime(), unresolvedmodel.maxtime(), 100)
     # unresolved
@@ -124,12 +128,13 @@ def unresolved_and_individual_lcs(unresolvedmodel, savelc = False, tgrid='contin
         if savelc: 
             lc_tab = Table()
             y = unresolvedmodel.bandmag(b_arr, 'ab', time_arr)
-            mask = (~np.isnan(y)) & (~np.isinf(y))
-            lc_tab['time'] = time_arr[mask]
+            mask = (~np.isnan(y)) & (~np.isinf(y))    # ensures that we get rid of nans? ~ means that if np.isnan is true, it returns False. So mask essentially returns the indices of the non-nan variables
+            lc_tab['time'] = time_arr[mask]    #keeping only the non-nans
             lc_tab['band'] = b_arr[mask]
             fl =  pow(10, -0.4 * (y[mask] - 25))
             lc_tab['flux'] = fl
-            lc_tab['flux_err'] = 0.1 * fl
+            #lc_tab['flux_err'] = 0.1 * fl   # SO CODE BUILDS IN A 0.1 FLUX_ERR, I AM GOING TO CHANGE THIS TOO
+            lc_tab['flux_err'] = fl_err * fl
             lc_tab['zp']  = [25 for ii in range(len(time_arr[mask]))]
             lc_tab['zpsys'] = ['ab' for ii in range(len(time_arr[mask]))]
             
@@ -212,12 +217,12 @@ model.set(**{'dt_1':-10})
 model.set(**{'dt_2':10})
 model.set(**{'t0':5})
 #tspace = 'discrete'
-tspace = 'continuous'
+tspace = 'discrete'
 
 lc = unresolved_and_individual_lcs(model, savelc=True, nimages = nimages, tgrid=tspace)
 print(lc)
-sncosmo.plot_lc(lc)
-
+fig = sncosmo.plot_lc(lc)
+fig.savefig('Plot folder/examp_lensed_lcs.png', dpi = 2000)   # saves lightcurves!
 
 # In[ ]:
 
