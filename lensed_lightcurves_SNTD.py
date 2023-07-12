@@ -43,13 +43,23 @@ mu_1 = 2
 mu_2 = 7
 
 delta_t_list = np.linspace(min_delta_t, max_delta_t, 4)
-
+#delta_t_list = [15]
 
 # param_out_array = np.zeros((len(out_param_vals), 0)) 
 # param_in_array = np.zeros((len(out_param_vals), 0)) 
 
 param_out_array = np.zeros((9, 0)) 
 param_in_array = np.zeros((9, 0))
+
+params_to_fit = ['t0', 'x0', 'x1', 'c', 'dt_1', 'mu_1', 'dt_2', 'mu_2']  # must put in order of param_out_names! otherwise corner plot input_overlay_params wont work!
+params_to_fit = ['t0', 'x0', 'x1', 'c', 'dt_1', 'dt_2']
+params_to_fit = ['t0', 'dt_1', 'dt_2']
+params_to_fit = ['x0', 't0', 'dt_1', 'dt_2']
+# For reference, param_out_names order is: z,t0,x0,x1,c,dt1,mu1,dt2,mu2
+params_to_hold_constant = {'z':z_val} 
+params_to_hold_constant = {'z':z_val, 'mu_1': mu_1, 'mu_2': mu_2, 'x0':x0_val, 'x1':x1_val, 'c':c_val} 
+#fit_bounds = {'t0':(-25,25),'x1':(-2,2),'c':(-1,1), 'mu_1': (1,3), 'dt_2': (10,30), 'dt_1': (-10,-30),'mu_2': (6,8)}
+#fit_bounds = {'t0':(-25,25), 'dt_2': (10,30), 'dt_1': (-10,-30)}
 
 #%%
 
@@ -91,18 +101,27 @@ for dt_val in delta_t_list:
     unresolved=sntd.unresolvedMISN([image_a,image_b])
     
     # Setting parameters
-    unresolved.set_delays([-5,20])   # So does that (comment below) mean that these are essentially just priors?
-    unresolved.set_magnifications([10,1])   # I've noticed if you comment out either of these lines, it breaks. So I think you need to provide this info for it to work.
+    unresolved.set_delays([-5,5])   # So does that (comment below) mean that these are essentially just priors?
+    unresolved.set_magnifications([2,7])   # I've noticed if you comment out either of these lines, it breaks. So I think you need to provide this info for it to work.
     unresolved.set(z=z_val)
     unresolved.set(t0=t0_val)
+    unresolved.set(x0= x0_val)
     
     # Initialising MISN object using unresolved data
     new_MISN=sntd.table_factory(data,telescopename='Unknown',object_name='Unresolved')   # basically just creates MISN instance, but in a clever way to use your given data
     
     # Fitting
-    fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=unresolved,bands=['ztfr', 'ztfi'],   # there is another filter ztfg but not shown here because it breaks the code
-                    params=['x0','x1','t0','c','mu_1', 'dt_2','mu_2', 'dt_1'],constants={'z':z_val},   # changing order of params entered here doesnt affect fitcurves.model.parameters order
-                    bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1), 'mu_1': (1,3), 'dt_2': (10,30), 'dt_1': (-10,-30),'mu_2': (6,8)})
+    # fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=unresolved,bands=['ztfr', 'ztfi'],   # there is another filter ztfg but not shown here because it breaks the code
+    #                 params=params_to_fit,constants=params_to_hold_constant,   # changing order of params entered here doesnt affect fitcurves.model.parameters order
+    #                 bounds=fitting_bounds)
+    #print(unresolved.param_names)
+    
+    fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=unresolved,bands=['ztfg', 'ztfr', 'ztfi'],   # there is another filter ztfg but not shown here because it breaks the code
+                    #params=params_to_fit,constants=params_to_hold_constant,   # changing order of params entered here doesnt affect fitcurves.model.parameters order
+                    params=params_to_fit,constants={'z':z_val, 'x1':x1_val, 'c':c_val, 'mu_1': mu_1, 'mu_2': mu_2} ,   # changing order of params entered here doesnt affect fitcurves.model.parameters order
+                    #bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1), 'mu_1': (1,3), 'dt_2': (10,30), 'dt_1': (-10,-30),'mu_2': (6,8)})
+                    #bounds=fit_bounds)   #works for the first loop, breaks thereafter? Completely bizarre error
+                    bounds={'t0':(-25,25), 'dt_1':(-30,0), 'dt_2':(0,30)})
     
     print(list(zip(fitCurves.images['image_1'].fits.model.param_names, fitCurves.images['image_1'].fits.model.parameters)))
     
@@ -144,15 +163,25 @@ for dt_val in delta_t_list:
     
     param_out_array = np.concatenate((param_out_array, out_param_vals.reshape(-1,1)), axis=1) 
     
-    input_overlay = in_param_vals[1:]
-    print(input_overlay)
+    # Computing input overlay
+    input_overlay_names = []  # ie names of input parameters being fit
+    input_overlay_vals = [] # ie input values of parameters being fit
+    
+    input_overlay = []
+    # Loop for finding parameters to overlay
+    for i in range(len(out_param_names)):
+        for j in range(len(params_to_fit)):
+            if out_param_names[i] == params_to_fit[j]:   #ie when you've found a match between location of input/output (theyre the same order) parameter and parameter to fit
+                input_overlay.append(in_param_vals[i])   # keep that parameter to fit's input parameter
+        else:
+            continue
     
     # Plotting
     fig1 = fitCurves.plot_object(showFit=True,plot_unresolved=True)
     fig2 = fitCurves.plot_fit()    # gives corner plot of probabilities
 
     # Extract the axes
-    ndim  = 8 # must be equal to number of graphs    
+    ndim  = 4  # must be equal to number of graphs, couldnt soft code because of weird error with defining bounds etc. outside of loop    
     axes = np.array(fig2.axes).reshape((ndim, ndim))
     
     # Loop over the diagonal
@@ -168,7 +197,7 @@ for dt_val in delta_t_list:
             ax.axhline(input_overlay[yi], color="g")
             ax.plot(input_overlay[xi], input_overlay[yi], "sg")
     
-    #plt.show()
+    plt.show()
     fig1.savefig('double_lc.png')
     fig2.savefig('cornerdouble.png')
 
@@ -218,9 +247,39 @@ print(reduced_chi)
 Questions:
     
 - do the 'priors' matter? Comparison video on phone from set_delays (-5,5) to (-5,20) and set_magnifications from i think (2,5) to (10,1)
- - CLEARLY THEY ARE SOMEWHAT SENSITIVE TO IT
+ - CLEARLY THEY ARE SOMEWHAT SENSITIVE TO IT, initial guesses
+ 
+ - why is t0 real range not shown
+
+- plot together
+fix everything except time delays
+
+r, i, g,z j nad h, y g and h
+
+Essentially just do with time delay parameters, just do with parameters he said originally, see results,
+try to figure out how important initial guesses are, put corner plots and lightcurves on the same figure in overleaf to avoid confusion,
+then add the other filters to see how effective these are at reducing errors on time delays etc.
+
+Apparently maybe nobody has tested the filters' effects on this analysis before, so that would be very interesting'
 
 """
+"""
+Explain microlensing maps
+
+SNTD microlensing treatment -- Stephen thought this was strange
+
+Fitting a gaussian process- what is this?
+
+Read SNTD paper - how does SNTD actually work?
+
+Presumably also read SNCosmo paper too
+
+Less important:
+    - what is a truncated gaussian compared to what is gaussian? What is gaussian fitting in general?
+
+    - remind self of what the SNe parameters are, Rv, Av, mu etc.
+"""
+
 
 
 
