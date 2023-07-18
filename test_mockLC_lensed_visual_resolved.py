@@ -66,7 +66,7 @@ class GLSNe(sncosmo.Source):
 
         self._current_parameters = self._parameters.copy()
 
-    def _flux(self, phase, wave):
+    def _flux(self, phase, wave):   # this must be where the images are added together
         if np.any(self._current_parameters != self._parameters):
             self.update_param()
 
@@ -112,17 +112,13 @@ def unresolved_and_individual_lcs(unresolvedmodel, savelc = False, tgrid='contin
     else:
         time = np.linspace(unresolvedmodel.mintime(), unresolvedmodel.maxtime(), 100)
     # unresolved
-    b_arr = np.concatenate([['ztfg' for ii in range(len(time))], ['ztfr' for ii in range(len(time))], 
-                  ['ztfi' for ii in range(len(time))]])
-    
-    print(b_arr)
+    #b_arr = np.concatenate([['ztfg' for ii in range(len(time))], ['ztfr' for ii in range(len(time))], 
+                  #['ztfi' for ii in range(len(time))]])
     
     conc_list = []
     for i in range(len(bands)):
         conc_list.append([bands[i] for jj in range(len(time))])
-    b_arr = np.concatenate(conc_list)
-    
-    print(b_arr)
+    b_arr = np.concatenate(conc_list)    # seems to work OK, think it stands for 'band array'
     
     #time_arr = np.concatenate([time, time, time])
     time_list_to_concatenate = [time] * len(bands)
@@ -149,6 +145,7 @@ def unresolved_and_individual_lcs(unresolvedmodel, savelc = False, tgrid='contin
             lc_tab['flux_err'] = fl_err * fl
             lc_tab['zp']  = [25 for ii in range(len(time_arr[mask]))]
             lc_tab['zpsys'] = ['ab' for ii in range(len(time_arr[mask]))]
+            lc_tab['image'] = ['ab' for ii in range(len(time_arr[mask]))]
             
     # individual images lcs
     if plotimages:
