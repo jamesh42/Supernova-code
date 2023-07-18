@@ -44,8 +44,9 @@ mu_2 = 7
 
 #delta_t_list = np.linspace(min_delta_t, max_delta_t, 4)
 delta_t_list = [10,10,10,10,10,10,10,10,10]
-delta_t_list = delta_t_list = np.linspace(10,30, 15 )
+#delta_t_list = delta_t_list = np.linspace(10,30, 15 )
 
+delta_t_list = [10, 20, 30]
 
 param_out_array = np.zeros((9, 0)) 
 param_in_array = np.zeros((9, 0))
@@ -64,12 +65,15 @@ band_list_full = ['ztfg', 'ztfr', 'ztfi', 'cspjd', 'cspyd', 'csphd']
 
 band_list_list = [band_list_ztf, band_list_csp, band_list_full]
 
+cadence_list = [0.1,1,5,10]
+
 #%%
 
 
 
 # Fitting and plotting data using SNTD
-for band_list in band_list_list:
+for cadence in cadence_list:
+#for band_list in band_list_list:
     for dt_val in delta_t_list:
         # Creating lensing
         # Model 1 (input model)
@@ -96,7 +100,7 @@ for band_list in band_list_list:
         tspace = 'discrete'   # I CHANGED SD'S CODE SO THAT BY DEFAULT THIS WAS 5 DAYS
     
         # Generating lensed lightcurve using Suhail's code
-        lc = unresolved_and_individual_lcs(model, savelc=True, nimages = nimages, tgrid=tspace, sample_freq = 5, bands = band_list_full)   #keep this on full, ie simulate all and then only use some
+        lc = unresolved_and_individual_lcs(model, savelc=True, nimages = nimages, tgrid=tspace, bands = band_list_full, sample_freq = cadence)   #keep this on full, ie simulate all and then only use some
         ascii.write(lc, data_file_name, overwrite=True)    #writing this lensed lc info to file to be read and fitted to by model 2
         data = sncosmo.read_lc(data_file_name)   # producing lensed lc data
     
@@ -124,12 +128,12 @@ for band_list in band_list_list:
         # Initialising MISN object using unresolved data
         new_MISN=sntd.table_factory(data,telescopename='Unknown',object_name='Unresolved')   # basically just creates MISN instance, but in a clever way to use your given data
         
-        fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=unresolved,bands=band_list,   # there is another filter ztfg but not shown here because it breaks the code
+        fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=unresolved,bands=band_list_full,   # there is another filter ztfg but not shown here because it breaks the code
                         #params=params_to_fit,constants=params_to_hold_constant,   # changing order of params entered here doesnt affect fitcurves.model.parameters order
                         params=params_to_fit,constants={'z':z_val, 'x1':x1_val, 'c':c_val, 'mu_1': mu_1, 'mu_2': mu_2} ,   # changing order of params entered here doesnt affect fitcurves.model.parameters order
                         #bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1), 'mu_1': (1,3), 'dt_2': (10,30), 'dt_1': (-10,-30),'mu_2': (6,8)})
                         #bounds=fit_bounds)   #works for the first loop, breaks thereafter? Completely bizarre error
-                        bounds={'t0':(-25,25), 'dt_1':(-30,0), 'dt_2':(0,30)}, method='parallel',npoints=1000)
+                        bounds={'t0':(-25,25), 'dt_1':(-30,0), 'dt_2':(0,30)}, method='parallel',npoints=100)
         
         print(list(zip(fitCurves.images['image_1'].fits.model.param_names, fitCurves.images['image_1'].fits.model.parameters)))
         
@@ -236,14 +240,10 @@ for band_list in band_list_list:
 # Residuals
 
 label_list = ['ztf', 'csp', 'both']
-colour_list = ['red','blue','green']
-print(len(delta_t_list))
-print(len(param_out_array[0]))
+label_list = ['0.1 day cadence', '1 day cadence', '5 day cadence', '10 day cadence']
+colour_list = ['red','blue','green', 'purple']
 
 time_len = len(delta_t_list)
-print(time_len)
-
-print(param_out_array[0][:4])
 
 for i in range(len(out_param_vals)):
     plt.title(str(in_param_names[i] + ' residuals'))
@@ -260,9 +260,6 @@ for i in range(len(out_param_vals)):
     plt.show()
     #plt.savefig('Plot folder/x_1vsdt.png', dpi=2000)
 
-
-
-#chi = fitCurves.series_chisq
 
 # Is this only image 1? I suppose the plot says only image 1 is fitted, and so I'd imagine that this is really for the whole fit
 chi = fitCurves.images['image_1'].chisq
