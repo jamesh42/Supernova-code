@@ -79,8 +79,10 @@ cadence_list = [1,5,10]
 chisq_list = []
 red_chisq_list = []
 
-#%%
+flux_error_list = [0.01,0.025, 0.05,0.075, 0.1]
 
+#%%
+cadence = 5
 
 
 # Fitting and plotting data using SNTD
@@ -88,9 +90,13 @@ red_chisq_list = []
 # for t1 in t1_list:
     # for t2 in t2_list:
         
+
+        
 # for cadence in cadence_list:
 # #for band_list in band_list_list:
-for cadence in cadence_list:
+#for cadence in cadence_list:
+#for band_list in band_list_list:
+for flux_error in flux_error_list:
     for dt_val in delta_t_list:
         # Creating lensing
         # Model 1 (input model)
@@ -117,7 +123,7 @@ for cadence in cadence_list:
         tspace = 'discrete'   # I CHANGED SD'S CODE SO THAT BY DEFAULT THIS WAS 5 DAYS
         
         # Generating lensed lightcurve using Suhail's code
-        lc = unresolved_and_individual_lcs(model, savelc=True, nimages = nimages, tgrid=tspace, bands = band_list_full, sample_freq = cadence)   #keep this on full, ie simulate all and then only use some
+        lc = unresolved_and_individual_lcs(model, savelc=True, nimages = nimages, tgrid=tspace, bands = band_list_full, sample_freq = cadence, fl_err = flux_error)   #keep this on full, ie simulate all and then only use some
         ascii.write(lc, data_file_name, overwrite=True)    #writing this lensed lc info to file to be read and fitted to by model 2
         data = sncosmo.read_lc(data_file_name)   # producing lensed lc data
         
@@ -260,13 +266,15 @@ for cadence in cadence_list:
 print(chisq_list)
 print(len(chisq_list[:10]))
 
-colour_list = ['red', 'orange', 'green']
+colour_list = ['red', 'orange', 'green', 'purple', 'blue']
 label_list = ['1 day', '5 days', '10 days']
+label_list = ['ztf', 'csp', 'both']
+label_list = ['0.01', '0.025', '0.05', '0.075', '0.1']
 
 plt.title(r'$\chi^2$ vs $\Delta t$ for different cadences')
 plt.xlabel(r'$\Delta t$ (days)')
 plt.ylabel(r'$\chi^2$')
-for i in range(len(cadence_list)):
+for i in range(len(label_list)):
     plt.plot(delta_t_list, chisq_list[i*10:i*10+10], label=label_list[i], c=colour_list[i])   #plots 0 to 10, then 10 to 20, then 20 to 30
 plt.legend()
 plt.show()
@@ -274,49 +282,25 @@ plt.show()
 plt.title(r'Reduced $\chi^2$ vs $\Delta t$ for different cadences')
 plt.xlabel(r'$\Delta t$ (days)')
 plt.ylabel(r'$\chi^2$')
-for i in range(len(cadence_list)):
+for i in range(len(label_list)):
     plt.plot(delta_t_list, red_chisq_list[i*10:i*10+10],label=label_list[i], c=colour_list[i])
 plt.legend()
 plt.show()
 
 
 
-# Residuals
-
-# label_list = ['ztf', 'csp', 'both']
-# label_list = ['0.1 day cadence', '1 day cadence', '5 day cadence', '10 day cadence']
-# colour_list = ['red','blue','green', 'purple']
-
-# time_len = len(delta_t_list)
-
-# for i in range(len(out_param_vals)):
-#     plt.title(str(in_param_names[i] + ' residuals'))
-#     plt.xlabel(r'$\Delta t$')
-#     plt.ylabel(str(in_param_names[i] + ' residuals'))
-#     # for j in range(len(param_in_array[0])):
-#         # plt.scatter(delta_t_list_2[0], (param_out_array[i][j] - param_in_array[i][j]), c=colour_list[j], label=label_list[j])
-#     for j in range(len(label_list)):
-#         plt.scatter(delta_t_list, (param_out_array[i][time_len*j:time_len*(j+1)] - param_in_array[i][time_len*j:time_len*(j+1)]), c=colour_list[j], label=label_list[j])   #only works with sim loops as they are
-#     #plt.colorbar(label=r'$\mu_1$')
-#     plt.legend()
-#     plt.plot()
-#     #plt.legend()
-#     plt.show()
-#     #plt.savefig('Plot folder/x_1vsdt.png', dpi=2000)
-
-
-# # Is this only image 1? I suppose the plot says only image 1 is fitted, and so I'd imagine that this is really for the whole fit
-# chi = fitCurves.images['image_1'].chisq
-# reduced_chi = fitCurves.images['image_1'].reduced_chisq    # THIS IS HOW YOU OBTAIN IT. 
-# #FOR SOME REASON, fitCurves.series_chisq doesn't work, even though series_chisq IS a property of the MISN class too
-# print(chi)
-# print(reduced_chi)
-# # print('x')
 
 
 
 """
 Questions:
+    
+
+Kaisey suggested that ztf performs worse than csp potentially because SNTD uses the peaks to fit the lightcurve and IR lightcurves have double peaks, so understandably this makes it harder.
+
+He also suggested that I ensure that producing and fitting RESOLVED lightcurves (for which you would expect very small errors) leads to a reduced chi2 of 1 (essentially this is just a sanity check.
+
+    
     
 - why does SNTD need to exist for RESOLVED images? Would the process not be really easy? Just subtract the time for one peak from the other?
     
