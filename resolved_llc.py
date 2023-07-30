@@ -67,6 +67,11 @@ residual_list_list = []   # list for storing lists of residuals
 delay_error_list_list = []
 
 
+source_model_list = ['salt2-extended', 'hsiao']
+#source_model_list = ['salt2-extended']
+
+
+#%%
 for dt_val in delta_t_list:
     # Creating data  
     
@@ -85,9 +90,7 @@ for dt_val in delta_t_list:
     
    
     # FITTING DATA
-    
-    source_model_list = ['salt2-extended', 'hsiao']
-    #source_model_list = ['salt2-extended']
+
     
     # Creating MISN instance using data
     new_MISN=sntd.table_factory([image_1_dat,image_2_dat],telescopename='telescope',object_name='example_SN')
@@ -101,68 +104,94 @@ for dt_val in delta_t_list:
         print(source_model)   # IF I REMOVE THIS, THE CODE BREAKS -- UTTERLY BIZARRE
         # Fitting again with SNTD
         
-        # FOR ANY MODEL EXCEPT SALT2, AMPLITUDE MUST BE USED IN PLACE OF X0
-        if source_model == 'salt2-extended':
+    max_retries = 10
+    retry_count = 0
+    
+    while retry_count < max_retries:
         
-            fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=source_model,bands=band_list,
-                            params=['x0','x1','t0','c'],constants={'z':z_val},
-                            bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1)}, method='parallel',npoints=100)
-            fitCurves.plot_object(showFit=True)
-            plt.show()
+        try:
             
-            time_delay_SNTD = fitCurves.parallel.time_delays['image_2'] - fitCurves.parallel.time_delays['image_1']
-            print(time_delay_SNTD)
-            residual = time_delay_SNTD - dt_val   #output time delay minus input time delay
-            print('residual: ' + str(residual) + ' days')
-            residual_list.append(residual)
-            t1_error = fitCurves.images['image_1'].fits.res.errors['t0']
-            t2_error = fitCurves.images['image_2'].fits.res.errors['t0']
-            # So, assuming that t0 in SNTD is really the time delay
-            total_t_error = np.sqrt(t1_error**2 + t2_error**2)
+            # FOR ANY MODEL EXCEPT SALT2, AMPLITUDE MUST BE USED IN PLACE OF X0
+            if source_model == 'salt2-extended':
             
-            delay_error_list.append(total_t_error)
-
+                fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=source_model,bands=band_list,
+                                params=['x0','x1','t0','c'],constants={'z':z_val},
+                                bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1)}, method='parallel',npoints=100)
+                fitCurves.plot_object(showFit=True)
+                plt.show()
+                
+                time_delay_SNTD = fitCurves.parallel.time_delays['image_2'] - fitCurves.parallel.time_delays['image_1']
+                print(time_delay_SNTD)
+                residual = time_delay_SNTD - dt_val   #output time delay minus input time delay
+                print('residual: ' + str(residual) + ' days')
+                residual_list.append(residual)
+                t1_error = fitCurves.images['image_1'].fits.res.errors['t0']
+                t2_error = fitCurves.images['image_2'].fits.res.errors['t0']
+                # So, assuming that t0 in SNTD is really the time delay
+                total_t_error = np.sqrt(t1_error**2 + t2_error**2)
+                
+                delay_error_list.append(total_t_error)
+                
+                break
+    
+                
+            else:
             
-        else:
+                fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=source_model,bands=band_list,
+                                params=['amplitude','x1','t0','c'],constants={'z':z_val},
+                                bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1)}, method='parallel',npoints=100)
+                fitCurves.plot_object(showFit=True)
+                plt.show()
+                
+                time_delay_SNTD = fitCurves.parallel.time_delays['image_2'] - fitCurves.parallel.time_delays['image_1']
+                print(time_delay_SNTD)
+                residual = time_delay_SNTD - dt_val
+                print('residual: ' + str(residual) + ' days')
+                residual_list.append(residual)
+                #print('errors!')
+                #print(type(fitCurves.images))
+                print(fitCurves.images['image_1'].fits.res.errors['t0'])
+                print(fitCurves.images['image_2'].fits.res.errors['t0'])
+                
+                
+                print(fitCurves.parallel.time_delays)
+                print(fitCurves.parallel.time_delay_errors)   #why are these arrays???
+                print('image 1')
+                print(fitCurves.images['image_1'].fits.res)
+                print('image 2')
+                print(fitCurves.images['image_2'].fits.res)
+    
+                #t1 = fitCurves.images['image_1'].fits.res.param_dict['t0']   # why  on earth would image_1 not work - it turns out not to exist! Maybe by definition set to 0?
+                t2 = fitCurves.images['image_2'].fits.res.param_dict['t0']
+                #print('xxx')
+                #print(time_delay_SNTD - (t2-t1))
+                print(t2)
+                
+                t1_error = fitCurves.images['image_1'].fits.res.errors['t0']    #what is this quantity? turns out it's not what I thought.....
+                t2_error = fitCurves.images['image_2'].fits.res.errors['t0']
+                print('errors:')
+                print(fitCurves.parallel.time_delay_errors)
+                # So, assuming that t0 in SNTD is really the time delay
+                total_t_error = np.sqrt(t1_error**2 + t2_error**2)
+                print(total_t_error)
+                
+                delay_error_list.append(total_t_error)
+                # NOW YOU JUST NEED TO PLOT IT! (ALSO CHECK WHETHER t0 IS THE TIME DELAY!)
+                break
+                
+        except ZeroDivisionError:
+            retry_count += 1
+            continue
         
-            fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=source_model,bands=band_list,
-                            params=['amplitude','x1','t0','c'],constants={'z':z_val},
-                            bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1)}, method='parallel',npoints=100)
-            fitCurves.plot_object(showFit=True)
-            plt.show()
+        except Exception:
+            print(Exception)
+            break
             
-            time_delay_SNTD = fitCurves.parallel.time_delays['image_2'] - fitCurves.parallel.time_delays['image_1']
-            print(time_delay_SNTD)
-            residual = time_delay_SNTD - dt_val
-            print('residual: ' + str(residual) + ' days')
-            residual_list.append(residual)
-            #print('errors!')
-            #print(type(fitCurves.images))
-            print(fitCurves.images['image_1'].fits.res.errors['t0'])
-            print(fitCurves.images['image_2'].fits.res.errors['t0'])
-            
-            
-            print(fitCurves.parallel.time_delays)
-            print(fitCurves.parallel.time_delay_errors)
-            print('image 1')
-            print(fitCurves.images['image_1'].fits.res)
-            print('image 2')
-            print(fitCurves.images['image_2'].fits.res)
-
-            #t1 = fitCurves.images['image_1'].fits.res.param_dict['t0']   # why  on earth would image_1 not work
-            t2 = fitCurves.images['image_2'].fits.res.param_dict['t0']
-            #print('xxx')
-            #print(time_delay_SNTD - (t2-t1))
-            
-            t1_error = fitCurves.images['image_1'].fits.res.errors['t0']
-            t2_error = fitCurves.images['image_2'].fits.res.errors['t0']
-            # So, assuming that t0 in SNTD is really the time delay
-            total_t_error = np.sqrt(t1_error**2 + t2_error**2)
-            
-            delay_error_list.append(total_t_error)
-            # NOW YOU JUST NEED TO PLOT IT! (ALSO CHECK WHETHER t0 IS THE TIME DELAY!)
-            
-            
+    if retry_count == max_retries:
+        print("Failed after maximum retries.")
+    else:
+        print("Code executed successfully. Took " + str(retry_count+1) + " tries." )
+        
             
             
             
@@ -171,14 +200,15 @@ for dt_val in delta_t_list:
             
             
             
-            
-        
-        residual_list_list.append(residual_list)
-        delay_error_list_list.append(delay_error_list)
+    
+    residual_list_list.append(residual_list)
+    delay_error_list_list.append(delay_error_list)
         
 #%%
 
 print(residual_list)
+print(residual_list_list)
+print(delay_error_list_list)
 
 colour_list = ['blue', 'orange']
 
@@ -197,6 +227,11 @@ plt.show()
 
 
 
+"""
+Questions: 
+    
+    -what is t1_error = fitCurves.images['image_1'].fits.res.errors['t0']? I have no idea what this, and the corresponding image_2 quantity, is
 
+"""
 
 
