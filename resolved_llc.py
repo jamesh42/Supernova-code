@@ -33,10 +33,7 @@ nimages = 2  # Multiplicity
 mu_1 = 2
 mu_2 = 7
 
-# dt_val =10
 
-# dt_1 = -dt_val/2
-# dt_2 = dt_val/2
 
 band_list_ztf = ['ztfg','ztfr', 'ztfi']
 band_list_csp = ['cspjd', 'cspyd', 'csphd']
@@ -73,12 +70,12 @@ source_model_list = ['salt2-extended', 'hsiao']
 band_list_list = [band_list_ztf, band_list_full]
 band_list_labels = ['ztf', 'both']
 
+a_v_val_list = [0.1, 0.25, 0.5]
 
 residual_list_list_list = []
 delay_error_list_list_list = []
 #%%
-for band_list in band_list_list:
-    
+for a_v_val in a_v_val_list:
     residual_list_list = []   # list for storing lists of residuals
     delay_error_list_list = []
 
@@ -91,14 +88,14 @@ for band_list in band_list_list:
         
         myMISN = sntd.createMultiplyImagedSN(sourcename='salt2-extended', snType='Ia', redshift=z_val, bands=band_list_full,
                      zp=zp_list, cadence=5., epochs=35.,time_delays=[dt_1, dt_2], magnifications=[mu_1,mu_2],
-         objectName='My Type Ia SN',telescopename='ztf',av_host=False, numImages = nimages, sn_params = sn_parameters)
+         objectName='My Type Ia SN',telescopename='ztf',av_host=a_v_val, numImages = nimages, sn_params = sn_parameters)
+        # Now adding in Av
         
         myMISN.plot_object()
         
         # Saving data to astropy tables - this is our created data
         image_1_dat = myMISN.images['image_1']['table']
         image_2_dat = myMISN.images['image_2']['table']
-        
        
         # FITTING DATA
         
@@ -123,7 +120,7 @@ for band_list in band_list_list:
                     # FOR ANY MODEL EXCEPT SALT2, AMPLITUDE MUST BE USED IN PLACE OF X0
                     if source_model == 'salt2-extended':
                     
-                        fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=source_model,bands=band_list,
+                        fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=source_model,bands=band_list_full,
                                         params=['x0','x1','t0','c'],constants={'z':z_val},
                                         bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1)}, method='parallel',npoints=100)
                         fitCurves.plot_object(showFit=True)
@@ -147,7 +144,7 @@ for band_list in band_list_list:
                         
                     else:
                     
-                        fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=source_model,bands=band_list,
+                        fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=source_model,bands=band_list_full,
                                         params=['amplitude','x1','t0','c'],constants={'z':z_val},
                                         bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1)}, method='parallel',npoints=100)
                         fitCurves.plot_object(showFit=True)
@@ -198,6 +195,9 @@ color_list = {
     (0, 1): 'orange',
     (1, 0): 'red',
     (1, 1): 'green',
+    (2,0): 'purple',
+    (2,1): 'cyan',
+    
     # Add more combinations as needed
 }
 
@@ -205,17 +205,17 @@ color_list = {
 plt.title(r'Time delay residuals for various fitting models')
 plt.xlabel(r'Original time delay (days)')
 plt.ylabel(r'Output time delay residuals (days)')
-plt.ylim(3,-3)
+#.ylim(3,-3)
 color_count = 0
-for k in range(len(band_list_list)):
+for k in range(len(a_v_val_list)):
     for i in range(len(delta_t_list)):
         for j in range(len(source_model_list)):
             # Use the color mapping based on k and j
             color = color_list[(k, j)]
-            
-            plt.plot(delta_t_list[i], residual_list_list_list[k][i][j], label = source_model_list[j] + ' ' + band_list_labels[k], marker='o', color = color)
+            it_label = source_model_list[j] + ' Av=' + str(a_v_val_list[k])
+            plt.plot(delta_t_list[i], residual_list_list_list[k][i][j], label = it_label, marker='o', color = color)
             y_err = [[delay_error_list_list_list[k][i][j][0]], [delay_error_list_list_list[k][i][j][1]]]   #getting that data points error bar values
-            plt.errorbar(delta_t_list[i], residual_list_list_list[k][i][j], yerr=y_err, label = source_model_list[j] + ' ' + band_list_labels[k], marker='o', color = color)
+            plt.errorbar(delta_t_list[i], residual_list_list_list[k][i][j], yerr=y_err, label = it_label, marker='o', color = color)
 handles, labels = plt.gca().get_legend_handles_labels()
 by_label = dict(zip(labels, handles))
 plt.legend(by_label.values(), by_label.keys(), loc='upper left')   #just copied off stack exchange to stop legend repeating itself
