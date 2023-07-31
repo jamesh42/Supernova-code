@@ -71,6 +71,7 @@ band_list_list = [band_list_ztf, band_list_full]
 band_list_labels = ['ztf', 'both']
 
 a_v_val_list = [0.1, 0.25, 0.5]
+a_v_val_list = np.linspace(0.1,0.5, 5)
 
 residual_list_list_list = []
 delay_error_list_list_list = []
@@ -121,8 +122,8 @@ for a_v_val in a_v_val_list:
                     if source_model == 'salt2-extended':
                     
                         fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=source_model,bands=band_list_full,
-                                        params=['x0','x1','t0','c'],constants={'z':z_val},
-                                        bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1)}, method='parallel',npoints=100)
+                                        params=['x0','x1','t0','c', 'Av'],constants={'z':z_val},
+                                        bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1), 'Av':(0., 0.6)}, method='parallel',npoints=100)
                         fitCurves.plot_object(showFit=True)
                         plt.show()
                         
@@ -167,7 +168,7 @@ for a_v_val in a_v_val_list:
                         break
                         
                 except ZeroDivisionError:
-                    retry_count += 1
+                    retry_count += 1   # USE ENUMERATE IN THIS 5:21 of python vid
                     continue
                 
                 except Exception:
@@ -222,7 +223,8 @@ plt.legend(by_label.values(), by_label.keys(), loc='upper left')   #just copied 
 #plt.legend()
 plt.show()
 
-
+# USE ENUMERATE FOR ALL FUTURE LOOPS
+# ALSO USE f STRINGS FOR ALL LABELS ETC.
 
 
 
