@@ -38,6 +38,7 @@ zp_list = [25.] * len(band_list_full)
 delta_t_list = np.linspace(0,40,5)
 delta_t_list = [10,20]
 delta_t_list= [10, 15, 20]
+delta_t_list = [10,20]
 #delta_t_list = [10]
 
 #%%ß
@@ -61,18 +62,12 @@ band_list_labels = ['ztf', 'both']
 # Extinction lists
 a_v_val_list = np.linspace(0.1,0.5, 2)
 a_v_val_list = np.linspace(0.1,0.5,5)
-#a_v_val_list = [0.1]
 
-# residual_list_list_list = []
-# delay_error_list_list_list = []
 #%%
 
 a_v_list2 = []
 residual_list2 = []
 delta_t_list2 = []
-
-N = len(a_v_val_list) * len(source_model_list) * len(delta_t_list)
-info_array = np.zeros((N,0))   # but this will surely break if any of the loops fail
 
 source_model_iterated_list = []   # just list to remember each data point's model used
 delay_error_list = []
@@ -94,7 +89,6 @@ for a_v_val in a_v_val_list:
          objectName='My Type Ia SN',telescopename='ztf',av_host=a_v_val, numImages = nimages, sn_params = sn_parameters) 
         myMISN.plot_object()
         
-        
         # Saving data to astropy tables - this is our created data
         image_1_dat = myMISN.images['image_1']['table']
         image_2_dat = myMISN.images['image_2']['table']
@@ -102,8 +96,7 @@ for a_v_val in a_v_val_list:
         # Creating MISN instance using data
         new_MISN=sntd.table_factory([image_1_dat,image_2_dat],telescopename='telescope',object_name='example_SN')
         
-        # residual_list = []   # stores residuals for all sources but at same time delay
-
+        dust = sncosmo.CCM89Dust()
      
         # FITTING DATA
         for source_model in source_model_list:
@@ -121,12 +114,14 @@ for a_v_val in a_v_val_list:
                     # FOR ANY MODEL EXCEPT SALT2, AMPLITUDE MUST BE USED IN PLACE OF X0
                     if source_model == 'salt2-extended':
                     
-                        fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=source_model,bands=band_list_full,
-                                        params=['x0','x1','t0','c'],constants={'z':z_val},
-                                        bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1)}, method='parallel',npoints=100)
+                        fitting_model=sncosmo.Model(source_model,effects=[dust,dust],effect_names=['lens','host'],effect_frames=['free','rest'])    
+                    
+                        fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=fitting_model,bands=band_list_full,
+                                        params=['x0','x1','t0','c', 'hostebv'],constants={'z':z_val, 'lensebv': 0., 'hostr_v':2.0},
+                                        bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1), 'hostebv':(0.02,0.333)}, method='parallel',npoints=100)
                         fitCurves.plot_object(showFit=True)
                         plt.show()
-                        
+                                                
                         time_delay_SNTD = fitCurves.parallel.time_delays['image_2'] - fitCurves.parallel.time_delays['image_1']
                         residual = time_delay_SNTD - dt_val
                         #residual_list.append(residual)
@@ -163,9 +158,11 @@ for a_v_val in a_v_val_list:
                         
                     else:
                     
-                        fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=source_model,bands=band_list_full,
-                                        params=['amplitude','x1','t0','c'],constants={'z':z_val},
-                                        bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1)}, method='parallel',npoints=100)
+                        fitting_model=sncosmo.Model(source_model,effects=[dust,dust],effect_names=['lens','host'],effect_frames=['free','rest'])    
+                    
+                        fitCurves=sntd.fit_data(new_MISN,snType='Ia', models=fitting_model,bands=band_list_full,
+                                        params=['amplitude','x1','t0','c', 'hostebv'],constants={'z':z_val, 'lensebv': 0., 'hostr_v':2.0},
+                                        bounds={'t0':(-25,25),'x1':(-2,2),'c':(-1,1), 'hostebv':(0.02,0.333)}, method='parallel',npoints=100)
                         fitCurves.plot_object(showFit=True)
                         plt.show()
                         
@@ -188,16 +185,6 @@ for a_v_val in a_v_val_list:
                         delta_t_list2.append(dt_val)
                         source_model_iterated_list.append(source_model)
                         
-                        # # File path to save the pickle file
-                        # fit_output_file_path = 'Pickle/Specific fits/lc_and_fit.pkl'
-                        
-                        # fit_data_to_save = {'og_MISN': myMISN, 'specific_fit': fitCurves}
-                        
-                        # # Open the file in binary mode and save the data using pickle
-                        # with open(fit_output_file_path, 'wb') as file:
-                        #     pickle.dump(fit_data_to_save, file)
-                        
-                        
                         break
                         
                 except ZeroDivisionError:
@@ -214,11 +201,7 @@ for a_v_val in a_v_val_list:
             else:
                 print("Code executed successfully. Took " + str(retry_count+1) + " tries." )
                     
-        
-    #     residual_list_list.append(residual_list)
-    #     delay_error_list_list.append(delay_error_list)
-    # delay_error_list_list_list.append(delay_error_list_list)   #silly
-    # residual_list_list_list.append(residual_list_list)
+    
             
 #%%
 
@@ -240,9 +223,6 @@ for i, err in enumerate(delay_error_list): #for each data point
     down_errors.append(err[0])
     up_errors.append(err[1])
     
-print(up_errors)
-
-
 # File path to save the pickle file
 fit_output_file_path = 'Pickle/Full sim tables/misc.pkl'  #specify which one!
 
@@ -250,19 +230,13 @@ fit_output_file_path = 'Pickle/Full sim tables/misc.pkl'  #specify which one!
 with open(fit_output_file_path, 'wb') as file:
     pickle.dump(data, file)
 
-print(delay_error_list)
-print(data)
-
-#print(delay_error_list[0])
-
 av_min = a_v_list2[0]
 av_max = a_v_list2[-1]
 
 plt.title(r'Time delay residuals for various fitting models')
 plt.xlabel(r'Original time delay (days)')
 plt.ylabel(r'Output time delay residuals (days)')
-#plt.ylim(-0,2)
-
+plt.ylim(-2,2)
 for i, A_v in enumerate(np.array(data['A_v'])):
     
     y_err = [[down_errors[i]], [up_errors[i]]] # this needs to be in this format, ie errorbar only accepts form [[down_error], [up_error]] for a given point (or of course [[down_errorS], [up_errorS]])
@@ -285,49 +259,6 @@ plt.show()
 
 # plot lightcurves IN OVERLEAF AS KAISEY SAYS, USEFUL TO SEE, COULD IR BE MISSING THE SECOND PEAK AT LARGE TIME DELAYS SINCE 
 # FINITE TIME SERIES SO DATA IS TRUNCATED CAUSING LOSS OF INFORMATION AND THEREFORE WORSE FIT
-
-
-#%%
-
-# colour_list = ['blue', 'orange', 'red', 'green']
-
-# # Define the color list based on the combinations of k and j
-# color_list = {
-#     (0, 0): 'blue',
-#     (0, 1): 'orange',
-#     (1, 0): 'red',
-#     (1, 1): 'green',
-#     (2,0): 'purple',
-#     (2,1): 'cyan',
-    
-#     # Add more combinations as needed
-# }
-
-
-# plt.title(r'Time delay residuals for various fitting models')
-# plt.xlabel(r'Original time delay (days)')
-# plt.ylabel(r'Output time delay residuals (days)')
-# #.ylim(3,-3)
-# color_count = 0
-# for k in range(len(a_v_val_list)):
-#     for i in range(len(delta_t_list)):
-#         for j in range(len(source_model_list)):
-#             # Use the color mapping based on k and j
-#             color = color_list[(k, j)]
-#             #it_label = source_model_list[j] + ' Av=' + str(a_v_val_list[k])
-#             it_label = f'{source_model_list[j]}, Av = {a_v_val_list[k]}'
-#             plt.plot(delta_t_list[i], residual_list_list_list[k][i][j], label = it_label, marker='o', color = color)
-#             y_err = [[delay_error_list_list_list[k][i][j][0]], [delay_error_list_list_list[k][i][j][1]]]   #getting that data points error bar values
-#             plt.errorbar(delta_t_list[i], residual_list_list_list[k][i][j], yerr=y_err, label = it_label, marker='o', color = color)
-# handles, labels = plt.gca().get_legend_handles_labels()
-# by_label = dict(zip(labels, handles))
-# plt.legend(by_label.values(), by_label.keys(), loc='upper left')   #just copied off stack exchange to stop legend repeating itself
-# #plt.legend()
-# plt.show()
-
-# USE ENUMERATE FOR ALL FUTURE LOOPS
-# ALSO USE f STRINGS FOR ALL LABELS ETC.
-
 
 
 
